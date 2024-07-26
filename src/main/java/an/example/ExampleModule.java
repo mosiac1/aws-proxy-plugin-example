@@ -1,19 +1,27 @@
 package an.example;
 
 import com.google.inject.Binder;
-import com.google.inject.Module;
-import com.google.inject.Scopes;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.trino.aws.proxy.plugin.config.CredentialsProviderPluginIdentifier;
+import io.trino.aws.proxy.plugin.config.S3SecurityFacadeProviderPluginIdentifier;
 
-import static io.trino.aws.proxy.spi.TrinoAwsProxyBinder.trinoAwsProxyBinder;
+import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.aws.proxy.plugin.TrinoAwsProxyPluginModuleBuilders.credentialsProviderModule;
+import static io.trino.aws.proxy.plugin.TrinoAwsProxyPluginModuleBuilders.s3SecurityFacadeProviderModule;
 
 public class ExampleModule
-    implements Module
+    extends AbstractConfigurationAwareModule
 {
     @Override
-    public void configure(Binder binder)
+    protected void setup(Binder binder)
     {
-        trinoAwsProxyBinder(binder)
-                .bindS3SecurityFacadeProvider(binding -> binding.to(MyS3SecurityFacadeProvider.class).in(Scopes.SINGLETON))
-                .bindCredentialsProvider(binding -> binding.to(MyCredentialsProvider.class).in(Scopes.SINGLETON));
+        install(credentialsProviderModule(
+                new CredentialsProviderPluginIdentifier("my-credentials-provider"),
+                MyCredentialsProvider.class,
+                innerBinder -> configBinder(innerBinder).bindConfig(MyCredentialsProviderConfig.class)));
+        install(s3SecurityFacadeProviderModule(
+                new S3SecurityFacadeProviderPluginIdentifier("my-security-facade"),
+                MyS3SecurityFacadeProvider.class,
+                (_) -> {}));
     }
 }
